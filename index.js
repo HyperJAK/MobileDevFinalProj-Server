@@ -11,8 +11,8 @@ app.use(cors())
 
 const db = mysql.createConnection({
     host: 'localhost',
-    user: 'JAK',
-    password: 'jak1',
+    user: 'root',
+    password: 'root',
     database: 'mobiledevdb'
 });
 
@@ -24,7 +24,7 @@ app.get("/", cors(), async (req, res) =>{
 // The sign up part
 app.post('/signup', (req, res)=> {
     const { email, password } = req.body;
-    const sql = 'SELECT id FROM account WHERE email = ?';
+    const sql = 'SELECT id FROM accounts WHERE email = ?';
 
     if (!email || !password) {
         return res.status(400).json({ error: 'All fields are required.' });
@@ -40,11 +40,12 @@ app.post('/signup', (req, res)=> {
         }
 
         const newUser = {
+            _username: null,
             _email: email,
             _password: password,
         };
 
-        db.query('INSERT INTO account(email,password) VALUES(?,?)', [newUser._email, newUser._password], (error) => {
+        db.query('INSERT INTO accounts(username,email,password,authenticated) VALUES(?,?,?,?)', [newUser._username,newUser._email, newUser._password, false], (error) => {
             if (error) {
               console.error('Error:', error);
               return res.status(500).json({ error: 'Internal server error.' });
@@ -52,6 +53,7 @@ app.post('/signup', (req, res)=> {
       
             // Send a response
             const userData = {
+                username: null,
                 email,
                 password
             };
@@ -63,7 +65,7 @@ app.post('/signup', (req, res)=> {
 // The login part
 app.post('/login', (req,res) => {
     const { email, password } = req.body;
-    const sql = 'SELECT * FROM account WHERE email = ? AND password = ?';
+    const sql = 'SELECT * FROM accounts WHERE email = ? AND password = ?';
 
     if (!email || !password) {
         return res.status(400).json({ error: 'All fields are required.' });
@@ -80,29 +82,152 @@ app.post('/login', (req,res) => {
         }
 
         var id = results[0].id;
+        var username = results[0].username
         var email = results[0].email;
         var password = results[0].password;
-        var users_id = results[0].users_id;
+        var profilePic = results[0].profilePic;
+        var authenticated = results[0].authenticated;
 
         if (results.length == 1) {
             const userData = {
                 id,
+                username,
                 email,
                 password,
-                users_id
+                profilePic,
+                authenticated
             };
             res.json({ message: 'User logged in successfully!', data:userData });
         }
     });
 });
 
-app.post("/getUsers", (req,res)=> {
+app.post("/getAllFlights", (req,res)=> {
 
-    const sqlSelect = "SELECT * FROM users";
-    db.query(sqlSelect, [req.body.userId], (err, result)=>{
-        res.send(result)
+    const sql = `
+    SELECT flights.flightId,
+    flights.name,
+    flights.departure_time,
+    loc1.city as 'departure',
+    loc2.city as 'destination',
+    JSON_ARRAYAGG(JSON_OBJECT('imageAlt', flightimages.alt, 'imageHDUrl', flightimages.imageHDUrl, 'imageUrl', flightimages.imageUrl )) AS ImageArray
+   FROM flights,flightimages,location loc1, location loc2
+   WHERE flightimages.flightId = flights.flightId 
+   AND flights.departure_location = loc1.id 
+   AND flights.destination = loc2.id
+   GROUP BY flights.flightId
+    `;
+    // sponsored by chatgpt
+
+    db.query(sql, (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({ error: 'Internal server error.' });
+        }
+        
+        if(results.length == 0){
+            return res.status(401).json({ error: 'There are no flights at this moment.' });
+        }
+
+        
+
+        if (results.length >= 1) {
+            console.log(results)
+            res.json({ message: 'Flights Data Received!', data:results });
+        }
     });
+});
 
+app.post("/getAllHotels", (req,res)=> {
+
+//     const sql1 = `
+//     SELECT hotels.hotelId,
+//  hotels.name,
+//  hotels.rating,
+//  hotels.description,
+//  location.city as 'location',
+//  JSON_ARRAYAGG(JSON_OBJECT('imageAlt', hotelimages.alt, 'imageHDUrl', hotelimages.imageHDUrl, 'imageUrl', hotelimages.imageUrl )) AS ImageArray
+// FROM hotels, location, hotelimages
+// WHERE hotels.hotelId = hotelimages.hotelId
+// AND hotels.location = location.id
+// GROUP BY hotels.hotelId
+//     `;
+    // sponsored by chatgpt
+
+    const sql = `
+    SELECT
+    h.hotelId,
+    h.name AS hotelName,
+    h.rating,
+    h.description AS hotelDescription,
+    l.address AS hotelAddress,
+    l.city AS hotelCity,
+    l.latitude AS hotelLatitude,
+    l.longitude AS hotelLongitude,
+    l.description AS locationDescription,
+    l.timeZone AS locationTimeZone,
+    (
+        SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'roomId', r.roomId,
+                'price', r.price,
+                'size', r.size,
+                'images', riArray.ImagesArray
+            )
+        )
+        FROM Rooms r
+        LEFT JOIN (
+            SELECT
+                ri.roomId,
+                JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'imageId', ri.id,
+                        'alt', ri.alt,
+                        'imageHDUrl', ri.imageHDUrl,
+                        'imageUrl', ri.imageUrl
+                    )
+                ) AS ImagesArray
+            FROM RoomImages ri
+            GROUP BY ri.roomId
+        ) AS riArray ON r.roomId = riArray.roomId
+        WHERE r.hotelId = h.hotelId
+    ) AS rooms,
+    (
+        SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'imageId', hi.id,
+                'alt', hi.alt,
+                'imageHDUrl', hi.imageHDUrl,
+                'imageUrl', hi.imageUrl
+            )
+        )
+        FROM HotelImages hi
+        WHERE hi.hotelId = h.hotelId
+    ) AS hotelImages
+FROM Hotels h
+LEFT JOIN Location l ON h.location = l.id
+GROUP BY
+    h.hotelId, h.name, h.rating, h.description,
+    l.address, l.city, l.latitude, l.longitude,
+    l.description, l.timeZone;
+`
+    db.query(sql, (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({ error: 'Internal server error.' });
+        }
+        
+        if(results.length == 0){
+            return res.status(401).json({ error: 'There are no flights at this moment.' });
+        }
+
+        
+
+        if (results.length >= 1) {
+            console.log(results)
+            res.json({ message: 'Flights Data Received!', data:results });
+        }
+    });
 });
 
 app.listen(port, () => {
