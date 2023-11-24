@@ -11,8 +11,8 @@ app.use(cors())
 
 const db = mysql.createConnection({
     host: 'localhost',
-    user: 'root',
-    password: 'root',
+    user: 'JAK',
+    password: 'jak1',
     database: 'mobiledevdb'
 });
 
@@ -23,10 +23,10 @@ app.get("/", cors(), async (req, res) =>{
 
 // The sign up part
 app.post('/signup', (req, res)=> {
-    const { email, password } = req.body;
+    const { email, encryptedPass } = req.body;
     const sql = 'SELECT id FROM accounts WHERE email = ?';
 
-    if (!email || !password) {
+    if (!email || !encryptedPass) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
@@ -42,7 +42,7 @@ app.post('/signup', (req, res)=> {
         const newUser = {
             _username: null,
             _email: email,
-            _password: password,
+            _password: encryptedPass,
         };
 
         db.query('INSERT INTO accounts(username,email,password,authenticated) VALUES(?,?,?,?)', [newUser._username,newUser._email, newUser._password, false], (error) => {
@@ -55,23 +55,22 @@ app.post('/signup', (req, res)=> {
             const userData = {
                 username: null,
                 email,
-                password
+                encryptedPass
             };
             res.json({ message: 'User signed up successfully!' , data:userData});
         });
     });
 });
-
 // The login part
 app.post('/login', (req,res) => {
-    const { email, password } = req.body;
-    const sql = 'SELECT * FROM accounts WHERE email = ? AND password = ?';
+    const { email, encryptedPass } = req.body;
+    const sql = 'SELECT * FROM accounts WHERE email = ?';
 
-    if (!email || !password) {
+    if (!email || !encryptedPass) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
-    db.query(sql, [email, password], (error, results) => {
+    db.query(sql, [email], (error, results) => {
         if (error) {
             console.error('Error:', error);
             return res.status(500).json({ error: 'Internal server error.' });
@@ -97,7 +96,7 @@ app.post('/login', (req,res) => {
                 profilePic,
                 authenticated
             };
-            res.json({ message: 'User logged in successfully!', data:userData });
+            res.json({ message: 'User info retrieved!', data:userData });
         }
     });
 });
