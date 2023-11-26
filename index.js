@@ -3,9 +3,10 @@ const app = express()
 const port = 4000
 const cors = require("cors")
 const mysql = require ('mysql2')
+const {json, urlencoded} = require("express");
 
-app.use(express.urlencoded({extended: true}))
-app.use(express.json())
+app.use(json({ limit: '50mb' }));
+app.use(urlencoded({ limit: '50mb', extended: true }));
 app.use(cors())
 
 
@@ -19,7 +20,42 @@ const db = mysql.createConnection({
 
 app.get("/", cors(), async (req, res) =>{
     res.send("This is working")
-})
+});
+
+
+app.post('/updateUserPic', async (req, res) => {
+    try {
+        const { user } = req.body;
+        console.log('Updating user with email: ')
+        console.log(user.email)
+
+        /*if (!req.file) {
+            return res.status(400).json({ error: 'No file provided.' });
+        }*/
+
+        // Your SQL query to update the user profile picture
+        const sql = 'UPDATE accounts SET profilePic = ? WHERE email = ?';
+
+        db.query(sql, [user.image, user.email], (error, results) => {
+            if (error) {
+                console.error('Error updating user profile picture:', error);
+                return res.status(500).json({ error: 'Internal server error.' });
+            }
+
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ error: 'User not found.' });
+            }
+
+            res.status(200).json({ message: 'User profile picture updated successfully.' });
+            console.log(results.affectedRows)
+        });
+
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
 
 // The sign up part
 app.post('/signup', (req, res)=> {
