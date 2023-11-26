@@ -23,6 +23,40 @@ app.get("/", cors(), async (req, res) =>{
 });
 
 
+app.post('/updateUserInfo', async (req, res) => {
+    try {
+        const { user, newEmail, encryptedPass, newUsername } = req.body;
+        console.log('Updating user: ')
+        console.log(user);
+
+        /*if (!req.file) {
+            return res.status(400).json({ error: 'No file provided.' });
+        }*/
+
+        // Your SQL query to update the user profile picture
+        const sql = 'UPDATE accounts SET email = ?, password = ?, username = ? WHERE email = ?';
+
+        db.query(sql, [newEmail, encryptedPass, newUsername, user.email], (error, results) => {
+            if (error) {
+                console.error('Error updating user profile picture:', error);
+                return res.status(500).json({ error: 'Internal server error.' });
+            }
+
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ error: 'User not found.' });
+            }
+
+            res.status(200).json({ message: 'User profile picture updated successfully.' });
+            console.log(results.affectedRows)
+        });
+
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+
 app.post('/updateUserPic', async (req, res) => {
     try {
         const { user } = req.body;
