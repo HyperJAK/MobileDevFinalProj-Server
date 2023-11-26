@@ -23,7 +23,7 @@ app.get("/", cors(), async (req, res) =>{
 
 // The sign up part
 app.post('/signup', (req, res)=> {
-    const { email, encryptedPass } = req.body;
+    const { email, encryptedPass, username, profilePic } = req.body;
     const sql = 'SELECT id FROM accounts WHERE email = ?';
 
     if (!email || !encryptedPass) {
@@ -40,12 +40,13 @@ app.post('/signup', (req, res)=> {
         }
 
         const newUser = {
-            _username: null,
+            _username: username,
             _email: email,
             _password: encryptedPass,
+            _profilePic: profilePic
         };
 
-        db.query('INSERT INTO accounts(username,email,password,authenticated) VALUES(?,?,?,?)', [newUser._username,newUser._email, newUser._password, false], (error) => {
+        db.query('INSERT INTO accounts(username,email,password,profilePic,authenticated) VALUES(?,?,?,?,?)', [newUser._username,newUser._email, newUser._password, newUser._profilePic, false], (error) => {
             if (error) {
               console.error('Error:', error);
               return res.status(500).json({ error: 'Internal server error.' });
@@ -53,7 +54,7 @@ app.post('/signup', (req, res)=> {
       
             // Send a response
             const userData = {
-                username: null,
+                username: username,
                 email,
                 encryptedPass
             };
@@ -63,7 +64,8 @@ app.post('/signup', (req, res)=> {
 });
 // The login part
 app.post('/login', (req,res) => {
-    const { email, encryptedPass } = req.body;
+    const { email, encryptedPass, username, profilePic } = req.body;
+
     const sql = 'SELECT * FROM accounts WHERE email = ?';
 
     if (!email || !encryptedPass) {
@@ -80,14 +82,14 @@ app.post('/login', (req,res) => {
             return res.status(401).json({ error: 'Invalid credentials.' });
         }
 
-        var id = results[0].id;
-        var username = results[0].username
-        var email = results[0].email;
-        var password = results[0].password;
-        var profilePic = results[0].profilePic;
-        var authenticated = results[0].authenticated;
+        const id = results[0].id;
+        const username = results[0].username;
+        const email = results[0].email;
+        const password = results[0].password;
+        const profilePic = results[0].profilePic;
+        const authenticated = results[0].authenticated;
 
-        if (results.length == 1) {
+        if (results.length === 1) {
             const userData = {
                 id,
                 username,
