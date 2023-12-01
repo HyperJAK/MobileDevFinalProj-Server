@@ -4,11 +4,13 @@ const port = 4000
 const cors = require("cors")
 const mysql = require ('mysql2')
 const {json, urlencoded} = require("express");
+require('dotenv').config();
 
 app.use(json({ limit: '50mb' }));
 app.use(urlencoded({ limit: '50mb', extended: true }));
 app.use(cors())
 
+console.log(process.env.MYSQL_SERVER_DB_IP)
 
 const db = mysql.createConnection({
     host: process.env.MYSQL_SERVER_DB_IP,
