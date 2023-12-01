@@ -11,10 +11,10 @@ app.use(cors())
 
 
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'JAK',
-    password: 'jak1',
-    database: 'mobiledevdb'
+    host: process.env.MYSQL_SERVER_DB_IP,
+    user: process.env.MYSQL_SERVER_USER_NAME,
+    password: process.env.MYSQL_SERVER_USER_PASSWORD,
+    database: process.env.MYSQL_SERVER_DB_NAME
 });
 
 
