@@ -219,22 +219,17 @@ app.post("/getAllTrips", async (req, res) => {
         f.flightId, f.name AS flightName, f.departure_time, 
         fldep.id AS departureLocationId, fldep.city AS departureCity, fldep.address AS departureAddress, fldep.description AS departureDescription, fldep.latitude AS departureLatitude, fldep.longitude AS departureLongitude, fldep.timeZone AS departureTimeZone, 
         fldest.id AS destinationLocationId, fldest.city AS destinationCity, fldest.address AS destinationAddress, fldest.description AS destinationDescription, fldest.latitude AS destinationLatitude, fldest.longitude AS destinationLongitude, fldest.timeZone AS destinationTimeZone, 
-        fi.id AS flightImageId, fi.alt AS flightImageAlt, fi.imageUrl AS flightImageUrl, fi.imageHDUrl AS flightImageHDUrl, 
         h.hotelId, h.name AS hotelName, h.description AS hotelDescription, h.rating, 
         hloc.id AS hotelLocationId, hloc.city AS hotelCity, hloc.address AS hotelAddress, hloc.description AS hotelDescription, hloc.latitude AS hotelLatitude, hloc.longitude AS hotelLongitude, hloc.timeZone AS hotelTimeZone, 
-        hi.id AS hotelImageId, hi.alt AS hotelImageAlt, hi.imageUrl AS hotelImageUrl, hi.imageHDUrl AS hotelImageHDUrl, 
-        r.roomId, r.size AS roomSize, r.price AS roomPrice, 
-        ri.id AS roomImageId, ri.alt AS roomImageAlt, ri.imageUrl AS roomImageUrl, ri.imageHDUrl AS roomImageHDUrl
+        r.roomId, r.size AS roomSize, r.price AS roomPrice 
+        
       FROM trips t
       JOIN flights f ON t.flight_id = f.flightId
       JOIN location fldep ON f.departure_location = fldep.id
       JOIN location fldest ON f.destination = fldest.id
-      JOIN flightImages fi ON f.flightId = fi.flightId
       JOIN hotels h ON t.booked_roomId = h.hotelId
-      JOIN hotelImages hi ON h.hotelId = hi.hotelId
       JOIN location hloc ON h.location = hloc.id
       JOIN rooms r ON t.booked_roomId = r.roomId
-      JOIN roomImages ri ON r.roomId = ri.roomId
       JOIN accounts a ON t.user_id = a.id
       WHERE a.email = 'userAF@example.com'
     `);
@@ -254,67 +249,171 @@ app.post("/getAllTrips", async (req, res) => {
         if (results.length >= 1) {
             console.log(results)
             const jsonObject = results.map(row => ({
-                tripId: row.tripId,
-                tripName: row.trip_name,
+                    tripId: row.tripId,
+                    trip_name: row.trip_name,
+                    flight: {
+                        flightId: row.flightId,
+                        flightName: row.flightName,
+                        departure_time: row.departure_time,
+                        departureLocation: {
+                            id: row.departureLocationId,
+                            city: row.departureCity,
+                            address: row.departureAddress,
+                            description: row.departureDescription,
+                            latitude: row.departureLatitude,
+                            longitude: row.departureLongitude,
+                            timeZone: row.departureTimeZone,
+                        },
+                        destinationLocation: {
+                            id: row.destinationLocationId,
+                            city: row.destinationCity,
+                            address: row.destinationAddress,
+                            description: row.destinationDescription,
+                            latitude: row.destinationLatitude,
+                            longitude: row.destinationLongitude,
+                            timeZone: row.destinationTimeZone,
+                        }
+                    },
+                    hotel: {
+                        hotelId: row.hotelId,
+                        hotelName: row.hotelName,
+                        hotelDescription: row.hotelDescription,
+                        rating: row.rating,
+                        hotelLocation: {
+                            id: row.hotelLocationId,
+                            city: row.hotelCity,
+                            address: row.hotelAddress,
+                            description: row.hotelDescription,
+                            latitude: row.hotelLatitude,
+                            longitude: row.hotelLongitude,
+                            timeZone: row.hotelTimeZone,
+                        }
+                    },
+                    room: {
+                        roomId: row.roomId,
+                        size: row.roomSize,
+                        price: row.roomPrice
+                    }
+                }));
+
+
+            res.json({message: 'Flights Data Received!', jsonData: jsonObject});
+        }
+    });
+});
+
+
+app.post("/getFlightImages", async (req, res) => {
+
+    const {flightId} = req.body
+
+    const sqlFlights = (`
+    select * from flightImages where flightId = ?;
+    `);
+
+
+    db.query(sqlFlights,[flightId], (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({error: 'Internal server error.'});
+        }
+
+        if (results.length == 0) {
+            return res.status(401).json({error: 'There are no flights at this moment.'});
+        }
+
+
+        if (results.length >= 1) {
+            console.log(results)
+            const jsonFlightImages = results.map(row => ({
                 flight: {
+                    id: row.id,
+                    alt: row.alt,
+                    imageHDUrl: row.imageHDUrl,
+                    imageUrl: row.imageUrl,
                     flightId: row.flightId,
-                    flightName: row.flightName,
-                    departure: {
-                        locationId: row.departureLocationId,
-                        city: row.departureCity,
-                        address: row.departureAddress,
-                        description: row.departureDescription,
-                        latitude: row.departureLatitude,
-                        longitude: row.departureLongitude,
-                        timeZone: row.departureTimeZone,
-                    },
-                    destination: {
-                        locationId: row.destinationLocationId,
-                        city: row.destinationCity,
-                        address: row.destinationAddress,
-                        description: row.destinationDescription,
-                        latitude: row.destinationLatitude,
-                        longitude: row.destinationLongitude,
-                        timeZone: row.destinationTimeZone,
-                    },
-                    flightImageId: row.flightImageId,
-                    flightImageAlt: row.flightImageAlt,
-                    flightImageUrl: row.flightImageUrl,
-                    flightImageHDUrl: row.flightImageHDUrl,
-                },
-                hotel: {
-                    hotelId: row.hotelId,
-                    hotelName: row.hotelName,
-                    hotelDescription: row.hotelDescription,
-                    rating: row.rating,
-                    location: {
-                        locationId: row.hotelLocationId,
-                        city: row.hotelCity,
-                        address: row.hotelAddress,
-                        description: row.hotelDescription,
-                        latitude: row.hotelLatitude,
-                        longitude: row.hotelLongitude,
-                        timeZone: row.hotelTimeZone,
-                    },
-                    hotelImageId: row.hotelImageId,
-                    hotelImageAlt: row.hotelImageAlt,
-                    hotelImageUrl: row.hotelImageUrl,
-                    hotelImageHDUrl: row.hotelImageHDUrl,
-                },
-                room: {
-                    roomId: row.roomId,
-                    roomSize: row.roomSize,
-                    roomPrice: row.roomPrice,
-                    roomImageId: row.roomImageId,
-                    roomImageAlt: row.roomImageAlt,
-                    roomImageUrl: row.roomImageUrl,
-                    roomImageHDUrl: row.roomImageHDUrl,
-                },
+                }
             }));
 
-            console.log(jsonObject)
 
-            res.json({message: 'Flights Data Received!', data: jsonObject});
+            res.json({message: 'Flights Images Received!', jsonFlightImages: jsonFlightImages});
+        }
+    });
+});
+
+app.post("/getHotelImages", async (req, res) => {
+
+    const {hotelId} = req.body
+
+    const sqlHotels = (`
+    select * from hotelimages where hotelId = ?;
+    `);
+
+
+    db.query(sqlHotels,[hotelId], (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({error: 'Internal server error.'});
+        }
+
+        if (results.length == 0) {
+            return res.status(401).json({error: 'There are no flights at this moment.'});
+        }
+
+
+        if (results.length >= 1) {
+            console.log(results)
+            const jsonHotelImages = results.map(row => ({
+                hotel: {
+                    id: row.id,
+                    alt: row.alt,
+                    imageHDUrl: row.imageHDUrl,
+                    imageUrl: row.imageUrl,
+                    hotelId: row.hotelId,
+                }
+            }));
+
+
+            res.json({message: 'Hotel Images Received!', jsonHotelImages: jsonHotelImages});
+        }
+    });
+});
+
+
+app.post("/getRoomImages", async (req, res) => {
+
+    const {roomId} = req.body
+
+    const sqlRooms = (`
+    select * from roomImages where roomId = ?;
+    `);
+
+
+    db.query(sqlRooms,[roomId], (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({error: 'Internal server error.'});
+        }
+
+        if (results.length == 0) {
+            return res.status(401).json({error: 'There are no flights at this moment.'});
+        }
+
+
+        if (results.length >= 1) {
+            console.log(results)
+            const jsonRoomImages = results.map(row => ({
+                room: {
+                    id: row.id,
+                    alt: row.alt,
+                    imageHDUrl: row.imageHDUrl,
+                    imageUrl: row.imageUrl,
+                    roomId: row.roomId,
+                }
+            }));
+
+
+            res.json({message: 'Room Images Received!', jsonRoomImages: jsonRoomImages});
         }
     });
 });
