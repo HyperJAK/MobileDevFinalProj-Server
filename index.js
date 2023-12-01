@@ -13,7 +13,7 @@ app.use(cors())
 
 const db = mysql.createConnection({
     host: process.env.MYSQL_SERVER_DB_IP,
-    user: process.env.MYSQL_SERVER_USER_NAME,
+user: process.env.MYSQL_SERVER_USER_NAME,
     password: process.env.MYSQL_SERVER_USER_PASSWORD,
     database: process.env.MYSQL_SERVER_DB_NAME
 });
@@ -135,6 +135,7 @@ app.post('/signup', (req, res)=> {
 });
 // The login part
 app.post('/login', (req,res) => {
+    console.log(req.body)
     const { email, encryptedPass, username, profilePic } = req.body;
 
     const sql = 'SELECT * FROM accounts WHERE email = ?';
@@ -169,7 +170,7 @@ app.post('/login', (req,res) => {
                 profilePic,
                 authenticated
             };
-            res.json({ message: 'User info retrieved!', data:userData });
+            res.json({ message: 'Logged in succesfully!', data:userData });
         }
     });
 });
@@ -318,8 +319,104 @@ app.post("/getAllTrips", async (req, res) => {
     });
 });
 
-
 app.post("/getAllHotels", (req,res)=> {
+    const { destination } = req.body;
+    if(destination=='') {return}
+    console.log(req.body)
+    //     const sql1 = `
+    //     SELECT hotels.hotelId,
+    //  hotels.name,
+    //  hotels.rating,
+    //  hotels.description,
+    //  location.city as 'location',
+    //  JSON_ARRAYAGG(JSON_OBJECT('imageAlt', hotelimages.alt, 'imageHDUrl', hotelimages.imageHDUrl, 'imageUrl', hotelimages.imageUrl )) AS ImageArray
+    // FROM hotels, location, hotelimages
+    // WHERE hotels.hotelId = hotelimages.hotelId
+    // AND hotels.location = location.id
+    // GROUP BY hotels.hotelId
+    //     `;
+        // sponsored by chatgpt
+        console.log('getting hotel info...')
+    
+        const sql = `
+        SELECT
+        h.hotelId,
+        h.name AS hotelName,
+        h.rating,
+        h.description AS hotelDescription,
+        l.address AS hotelAddress,
+        l.city AS hotelCity,
+        l.latitude AS hotelLatitude,
+        l.longitude AS hotelLongitude,
+        l.description AS locationDescription,
+        l.timeZone AS locationTimeZone,
+        (
+            SELECT JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'roomId', r.roomId,
+                    'price', r.price,
+                    'size', r.size,
+                    'images', riArray.ImagesArray
+                )
+            )
+            FROM Rooms r
+            LEFT JOIN (
+                SELECT
+                    ri.roomId,
+                    JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'imageId', ri.id,
+                            'alt', ri.alt,
+                            'imageHDUrl', ri.imageHDUrl,
+                            'imageUrl', ri.imageUrl
+                        )
+                    ) AS ImagesArray
+                FROM RoomImages ri
+                GROUP BY ri.roomId
+            ) AS riArray ON r.roomId = riArray.roomId
+            WHERE r.hotelId = h.hotelId
+        ) AS rooms,
+        (
+            SELECT JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'imageId', hi.id,
+                    'alt', hi.alt,
+                    'imageHDUrl', hi.imageHDUrl,
+                    'imageUrl', hi.imageUrl
+                )
+            )
+            FROM HotelImages hi
+            WHERE hi.hotelId = h.hotelId
+        ) AS hotelImages
+    FROM Hotels h
+    LEFT JOIN Location l ON h.location = l.id
+    WHERE l.city LIKE ?
+    GROUP BY
+        h.hotelId, h.name, h.rating, h.description,
+        l.address, l.city, l.latitude, l.longitude,
+        l.description, l.timeZone
+        ORDER BY h.rating DESC;
+    `
+        db.query(sql, ['%' + destination + '%'] ,(error, results) => {
+            if (error) {
+                console.error('Error:', error);
+                return res.status(500).json({ error: 'Internal server error.' });
+            }
+    
+            if(results.length == 0){
+                return res.status(404).json({ error: 'There are no hotels at this moment.' });
+            }
+    
+    
+    
+            if (results.length >= 1) {
+                console.log(results)
+                res.json({ message: 'Hotels Data Received!', data:results });
+            }
+        });
+    });
+
+app.post("/getTopHotels", (req,res)=> {
 
 //     const sql1 = `
 //     SELECT hotels.hotelId,
@@ -334,6 +431,7 @@ app.post("/getAllHotels", (req,res)=> {
 // GROUP BY hotels.hotelId
 //     `;
     // sponsored by chatgpt
+    console.log('getting hotel info...')
 
     const sql = `
     SELECT
@@ -390,7 +488,9 @@ LEFT JOIN Location l ON h.location = l.id
 GROUP BY
     h.hotelId, h.name, h.rating, h.description,
     l.address, l.city, l.latitude, l.longitude,
-    l.description, l.timeZone;
+    l.description, l.timeZone
+    ORDER BY h.rating DESC
+    LIMIT 3;
 `
     db.query(sql, (error, results) => {
         if (error) {
@@ -399,14 +499,14 @@ GROUP BY
         }
 
         if(results.length == 0){
-            return res.status(401).json({ error: 'There are no flights at this moment.' });
+            return res.status(401).json({ error: 'There are no hotels at this moment.' });
         }
 
 
 
         if (results.length >= 1) {
             console.log(results)
-            res.json({ message: 'Flights Data Received!', data:results });
+            res.json({ message: 'Hotels Data Received!', data:results });
         }
     });
 });
