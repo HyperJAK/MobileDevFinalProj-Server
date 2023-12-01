@@ -10,7 +10,6 @@ app.use(json({ limit: '50mb' }));
 app.use(urlencoded({ limit: '50mb', extended: true }));
 app.use(cors())
 
-console.log(process.env.MYSQL_SERVER_DB_IP)
 
 const db = mysql.createConnection({
     host: process.env.MYSQL_SERVER_DB_IP,
