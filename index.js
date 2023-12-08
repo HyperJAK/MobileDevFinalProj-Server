@@ -125,6 +125,7 @@ app.post('/signup', (req, res)=> {
       
             // Send a response
             const userData = {
+                id: results[0].id,
                 username: username,
                 email,
                 encryptedPass
@@ -137,6 +138,9 @@ app.post('/signup', (req, res)=> {
 app.post('/login', (req,res) => {
     console.log(req.body)
     const { email, encryptedPass, username, profilePic } = req.body;
+
+    console.log(email)
+    console.log(encryptedPass)
 
     const sql = 'SELECT * FROM accounts WHERE email = ?';
 
@@ -170,7 +174,38 @@ app.post('/login', (req,res) => {
                 profilePic,
                 authenticated
             };
+            console.log(userData)
             res.json({ message: 'Logged in succesfully!', data:userData });
+        }
+    });
+});
+
+
+app.post('/getUserId', (req,res) => {
+    const { email} = req.body;
+
+    console.log(email)
+
+    const sql = 'SELECT id FROM accounts WHERE email = ?';
+
+    db.query(sql, [email], (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({ error: 'Internal server error.' });
+        }
+
+        if(results.length == 0){
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
+
+        const id = results[0].id;
+
+        if (results.length === 1) {
+            const userData = {
+                id
+            };
+            console.log(userData)
+            res.json({ message: 'Logged in succesfully!', user:userData });
         }
     });
 });
@@ -213,6 +248,9 @@ app.post("/getAllFlights", (req,res)=> {
 
 app.post("/getAllTrips", async (req, res) => {
 
+
+    const {email} = req.body;
+
     const sql = (`
       SELECT distinct 
         t.id AS tripId, t.trip_name, 
@@ -231,11 +269,11 @@ app.post("/getAllTrips", async (req, res) => {
       JOIN location hloc ON h.location = hloc.id
       JOIN rooms r ON t.booked_roomId = r.roomId
       JOIN accounts a ON t.user_id = a.id
-      WHERE a.email = 'userAF@example.com'
+      WHERE a.email = ?
     `);
 
 
-    db.query(sql, (error, results) => {
+    db.query(sql, [email], (error, results) => {
         if (error) {
             console.error('Error:', error);
             return res.status(500).json({error: 'Internal server error.'});
@@ -357,7 +395,7 @@ app.post("/getHotelImages", async (req, res) => {
         }
 
         if (results.length == 0) {
-            return res.status(401).json({error: 'There are no flights at this moment.'});
+            return res.status(401).json({error: 'There are no hotels at this moment.'});
         }
 
 
@@ -396,7 +434,7 @@ app.post("/getRoomImages", async (req, res) => {
         }
 
         if (results.length == 0) {
-            return res.status(401).json({error: 'There are no flights at this moment.'});
+            return res.status(401).json({error: 'There are no rooms at this moment.'});
         }
 
 
@@ -414,6 +452,75 @@ app.post("/getRoomImages", async (req, res) => {
 
 
             res.json({message: 'Room Images Received!', jsonRoomImages: jsonRoomImages});
+        }
+    });
+});
+
+
+app.post("/addNewTrip", async (req, res) => {
+
+    const {tripName,id,userTrip} = req.body
+
+    const sqlRooms = (`
+    INSERT INTO trips (trip_name, user_id, flight_id, booked_roomId) VALUES(?, ?, ?, ?);
+    `);
+
+
+    db.query(sqlRooms,[tripName,id,userTrip[0].flight,userTrip[0].hotel], (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({error: 'Internal server error.'});
+        }
+
+        if (results.length == 0) {
+            return res.status(401).json({error: 'There are no rooms at this moment.'});
+        }
+
+
+        if (results.length >= 1) {
+            console.log(results)
+
+        }
+    });
+});
+
+app.post("/getRooms", async (req, res) => {
+
+    const {hotelId} = req.body
+
+    const sqlRooms = (`
+    select * from rooms where hotelId = ?;
+    `);
+
+    console.log('Hotel ID: ' + hotelId)
+
+
+    db.query(sqlRooms,[hotelId], (error, results) => {
+        if (error) {
+            console.error('Error:', error);
+            return res.status(500).json({error: 'Internal server error.'});
+        }
+
+        if (results.length == 0) {
+            return res.status(401).json({error: 'There are no rooms at this moment.'});
+        }
+
+
+        if (results.length >= 1) {
+            console.log(results)
+            const jsonRooms = results.map(row => ({
+                room: {
+                    roomId: row.roomId,
+                    price: row.price,
+                    size: row.size,
+                    hotelId: row.hotelId
+                }
+            }));
+
+            console.log('JSON' + jsonRooms)
+
+
+            res.json({message: 'Room Images Received!', jsonCurrentHotelRooms: jsonRooms});
         }
     });
 });
@@ -505,8 +612,7 @@ app.post("/getAllHotels", (req,res)=> {
             if(results.length == 0){
                 return res.status(404).json({ error: 'There are no hotels at this moment.' });
             }
-    
-    
+
     
             if (results.length >= 1) {
                 console.log(results)
@@ -611,5 +717,5 @@ GROUP BY
 });
 
 app.listen(port, () => {
-    console.log(`Listening at http://localhosty:${port}`)
+    console.log(`Listening at http://${process.env.MYSQL_SERVER_DB_IP}:${port}`)
 })
